@@ -1,0 +1,48 @@
+[package]
+name = "media-engine"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "media-engine"
+path = "src/main.rs"
+
+[dependencies]
+# Async runtime — the backbone of our zero-cost concurrency model
+tokio = { version = "1.44", features = ["full"] }
+
+# HTTP client for resilient async scraping
+reqwest = { version = "0.12", features = ["json", "cookies", "rustls-tls"], default-features = false }
+
+# HTML parsing with CSS selectors
+scraper = "0.23"
+
+# Redis client — BRPOP blocking pull for the job queue
+redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
+
+# Serialization / Deserialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# UUID generation for asset naming
+uuid = { version = "1", features = ["v4"] }
+
+# Structured async-friendly logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Environment variable loading
+dotenvy = "0.15"
+
+# Async file I/O
+tokio-util = { version = "0.7", features = ["io"] }
+
+# Error handling
+anyhow = "1"
+thiserror = "2"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"

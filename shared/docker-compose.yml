@@ -1,0 +1,123 @@
+name: transmedia-alchemist
+
+services:
+  # ─── Infrastructure ──────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: alchemist-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - alchemist-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: alchemist-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"   # REST API
+      - "6334:6334"   # gRPC
+    volumes:
+      - qdrant-data:/qdrant/storage
+    networks:
+      - alchemist-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:6333/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ─── Application Services ─────────────────────────────────────────
+  api-gateway:
+    build:
+      context: ../apps/api-gateway
+      dockerfile: Dockerfile
+    container_name: alchemist-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - REDIS_ADDR=redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - alchemist-net
+
+  media-engine:
+    build:
+      context: ../services/media-engine
+      dockerfile: Dockerfile
+    container_name: alchemist-media-engine
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - AI_SYNTHESIS_URL=http://ai-synthesis:8000
+    volumes:
+      - job-outputs:/app/output
+    depends_on:
+      redis:
+        condition: service_healthy
+      ai-synthesis:
+        condition: service_started
+    networks:
+      - alchemist-net
+
+  ai-synthesis:
+    build:
+      context: ../services/ai-synthesis
+      dockerfile: Dockerfile
+    container_name: alchemist-ai-synthesis
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+    volumes:
+      - job-outputs:/app/output
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    networks:
+      - alchemist-net
+
+  web-client:
+    build:
+      context: ../apps/web-client
+      dockerfile: Dockerfile
+    container_name: alchemist-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - NEXT_PUBLIC_GATEWAY_URL=http://localhost:8080
+    depends_on:
+      - api-gateway
+    networks:
+      - alchemist-net
+
+# ─── Networks & Volumes ─────────────────────────────────────────────
+networks:
+  alchemist-net:
+    driver: bridge
+
+volumes:
+  redis-data:
+  qdrant-data:
+  job-outputs:

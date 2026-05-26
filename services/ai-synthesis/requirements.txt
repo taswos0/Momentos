@@ -1,0 +1,27 @@
+fastapi==0.115.12
+uvicorn[standard]==0.34.2
+pydantic==2.11.5
+pydantic-settings==2.9.1
+
+# AI / LLM
+openai==1.84.0
+langchain==0.3.25
+langchain-openai==0.3.19
+
+# Vector Database
+qdrant-client==1.14.2
+
+# HTTP Client (for ElevenLabs & internal service calls)
+httpx==0.28.1
+
+# PDF Generation
+weasyprint==65.1
+
+# Image processing (upscaling, CMYK conversion)
+Pillow==11.2.1
+
+# Environment variables
+python-dotenv==1.1.0
+
+# Async task utilities
+anyio==4.9.0
