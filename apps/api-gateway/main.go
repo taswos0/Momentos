@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"strings"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -29,9 +30,15 @@ func main() {
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
 
+	frontendOrigin := getEnv("FRONTEND_ORIGIN", "http://localhost:3000")
+	origins := strings.Split(frontendOrigin, ",")
+	for i, origin := range origins {
+		origins[i] = strings.TrimSpace(origin)
+	}
+
 	// CORS: allow the Next.js frontend origin.
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowOrigins:     origins,
 		AllowMethods:     []string{"GET", "POST", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "X-API-Key"},
 		AllowCredentials: false,

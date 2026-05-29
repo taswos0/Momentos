@@ -6,8 +6,6 @@ services:
     image: redis:7-alpine
     container_name: alchemist-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
     volumes:
       - redis-data:/data
     networks:
@@ -22,18 +20,10 @@ services:
     image: qdrant/qdrant:latest
     container_name: alchemist-qdrant
     restart: unless-stopped
-    ports:
-      - "6333:6333"   # REST API
-      - "6334:6334"   # gRPC
     volumes:
       - qdrant-data:/qdrant/storage
     networks:
       - alchemist-net
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:6333/healthz || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
 
   # ─── Application Services ─────────────────────────────────────────
   api-gateway:
@@ -43,7 +33,7 @@ services:
     container_name: alchemist-gateway
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "18080:8080"
     env_file:
       - .env
     environment:
@@ -51,8 +41,17 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.momentos-api.rule=Host(`vmi2750025.contaboserver.net`) && PathPrefix(`/api`)
+      - traefik.http.routers.momentos-api.entrypoints=http
+      - traefik.http.middlewares.strip-api.stripprefix.prefixes=/api
+      - traefik.http.routers.momentos-api.middlewares=strip-api
+      - traefik.http.services.momentos-api.loadbalancer.server.port=8080
+      - traefik.docker.network=coolify
     networks:
       - alchemist-net
+      - coolify
 
   media-engine:
     build:
@@ -81,8 +80,6 @@ services:
       dockerfile: Dockerfile
     container_name: alchemist-ai-synthesis
     restart: unless-stopped
-    ports:
-      - "8000:8000"
     env_file:
       - .env
     environment:
@@ -91,7 +88,7 @@ services:
       - job-outputs:/app/output
     depends_on:
       qdrant:
-        condition: service_healthy
+        condition: service_started
     networks:
       - alchemist-net
 
@@ -102,20 +99,29 @@ services:
     container_name: alchemist-web
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "13000:3000"
     env_file:
       - .env
     environment:
-      - NEXT_PUBLIC_GATEWAY_URL=http://localhost:8080
+      - NEXT_PUBLIC_GATEWAY_URL=http://vmi2750025.contaboserver.net/api
     depends_on:
       - api-gateway
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.momentos-web.rule=Host(`vmi2750025.contaboserver.net`) && PathPrefix(`/`)
+      - traefik.http.routers.momentos-web.entrypoints=http
+      - traefik.http.services.momentos-web.loadbalancer.server.port=3000
+      - traefik.docker.network=coolify
     networks:
       - alchemist-net
+      - coolify
 
 # ─── Networks & Volumes ─────────────────────────────────────────────
 networks:
   alchemist-net:
     driver: bridge
+  coolify:
+    external: true
 
 volumes:
   redis-data:

@@ -15,8 +15,8 @@ use audio::AudioMixer;
 use models::{Job, JobStatus, JobType};
 use scraper::Scraper;
 
-/// The AI Synthesis service URL — we forward scraped data here for LLM processing.
-const AI_SYNTHESIS_URL: &str = env!("AI_SYNTHESIS_URL", "http://localhost:8000");
+/// Default AI Synthesis URL used when the env var is not set.
+const DEFAULT_AI_SYNTHESIS_URL: &str = "http://localhost:8000";
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -112,7 +112,8 @@ async fn process_job(job: Job, output_root: PathBuf) -> Result<()> {
         "output_dir": job_dir.to_str().unwrap_or(""),
     });
 
-    let ai_url = std::env::var("AI_SYNTHESIS_URL").unwrap_or_else(|_| AI_SYNTHESIS_URL.into());
+    let ai_url =
+        std::env::var("AI_SYNTHESIS_URL").unwrap_or_else(|_| DEFAULT_AI_SYNTHESIS_URL.into());
     let client = reqwest::Client::new();
     client
         .post(format!("{}/synthesize", ai_url))
